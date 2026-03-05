@@ -5,39 +5,28 @@ use App\Livewire\Settings\Password;
 use App\Livewire\Settings\Profile;
 use App\Livewire\Settings\TwoFactor;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Laravel\Fortify\Features;
 
 Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
-Route::view('dashboard', 'dashboard')
-    ->middleware(['auth', 'verified'])
-    ->name('dashboard');
+// ✅ Dashboard agora é controlado pela nossa regra de "tem empresa?"
+Route::middleware(['auth', 'verified'])->group(function () {
 
-Route::middleware(['auth'])->group(function () {
-    Route::redirect('settings', 'settings/profile');
+    // 3) Se o usuário não tem empresa, manda criar
+    Route::get('/dashboard', function () {
+        $userId = auth()->id();
+        $user = DB::table('users')->where('id', $userId)->first();
 
-    Route::get('settings/profile', Profile::class)->name('profile.edit');
-    Route::get('settings/password', Password::class)->name('user-password.edit');
-    Route::get('settings/appearance', Appearance::class)->name('appearance.edit');
+        if (!$user || !$user->company_id) {
+            return redirect('/company/create');
+        }
 
-    Route::get('settings/two-factor', TwoFactor::class)
-        ->middleware(
-            when(
-                Features::canManageTwoFactorAuthentication()
-                    && Features::optionEnabled(Features::twoFactorAuthentication(), 'confirmPassword'),
-                ['password.confirm'],
-                [],
-            ),
-        )
-        ->name('two-factor.show');
-});
-use Illuminate\Support\Facades\Route;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-
-Route::middleware(['auth'])->group(function () {
+        return view('dashboard');
+    })->name('dashboard');
 
     // 1) Tela simples para criar empresa
     Route::get('/company/create', function () {
@@ -91,15 +80,21 @@ Route::middleware(['auth'])->group(function () {
         return redirect('/dashboard');
     })->name('company.store');
 
-    // 3) Se o usuário não tem empresa, manda criar
-    Route::get('/dashboard', function () {
-        $userId = auth()->id();
-        $user = DB::table('users')->where('id', $userId)->first();
+    // Rotas de settings que já existiam
+    Route::redirect('settings', 'settings/profile');
 
-        if (!$user || !$user->company_id) {
-            return redirect('/company/create');
-        }
+    Route::get('settings/profile', Profile::class)->name('profile.edit');
+    Route::get('settings/password', Password::class)->name('user-password.edit');
+    Route::get('settings/appearance', Appearance::class)->name('appearance.edit');
 
-        return view('dashboard');
-    })->name('dashboard');
+    Route::get('settings/two-factor', TwoFactor::class)
+        ->middleware(
+            when(
+                Features::canManageTwoFactorAuthentication()
+                    && Features::optionEnabled(Features::twoFactorAuthentication(), 'confirmPassword'),
+                ['password.confirm'],
+                [],
+            ),
+        )
+        ->name('two-factor.show');
 });
