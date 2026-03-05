@@ -33,3 +33,73 @@ Route::middleware(['auth'])->group(function () {
         )
         ->name('two-factor.show');
 });
+use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+Route::middleware(['auth'])->group(function () {
+
+    // 1) Tela simples para criar empresa
+    Route::get('/company/create', function () {
+        return '
+            <h1>Criar empresa</h1>
+            <form method="POST" action="/company/create">
+                <input type="hidden" name="_token" value="'.csrf_token().'">
+                <label>Nome da empresa</label><br>
+                <input name="name" required style="padding:8px; width:320px;"><br><br>
+                <button type="submit" style="padding:10px 14px;">Salvar</button>
+            </form>
+        ';
+    })->name('company.create');
+
+    // 2) Salva empresa no banco (bem simples)
+    Route::post('/company/create', function (Request $request) {
+        $request->validate(['name' => 'required|min:2|max:120']);
+
+        // cria tabela se ainda não existir (gambiarra simples de iniciante)
+        DB::statement("CREATE TABLE IF NOT EXISTS companies (
+            id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(120) NOT NULL,
+            owner_user_id BIGINT UNSIGNED NOT NULL,
+            created_at TIMESTAMP NULL,
+            updated_at TIMESTAMP NULL
+        )");
+
+        // cria coluna company_id em users se não existir
+        $columns = DB::select("SHOW COLUMNS FROM users LIKE 'company_id'");
+        if (count($columns) === 0) {
+            DB::statement("ALTER TABLE users ADD company_id BIGINT UNSIGNED NULL");
+        }
+
+        $userId = auth()->id();
+
+        // cria empresa
+        DB::table('companies')->insert([
+            'name' => $request->name,
+            'owner_user_id' => $userId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $companyId = DB::getPdo()->lastInsertId();
+
+        // liga usuário à empresa
+        DB::table('users')->where('id', $userId)->update([
+            'company_id' => $companyId
+        ]);
+
+        return redirect('/dashboard');
+    })->name('company.store');
+
+    // 3) Se o usuário não tem empresa, manda criar
+    Route::get('/dashboard', function () {
+        $userId = auth()->id();
+        $user = DB::table('users')->where('id', $userId)->first();
+
+        if (!$user || !$user->company_id) {
+            return redirect('/company/create');
+        }
+
+        return view('dashboard');
+    })->name('dashboard');
+});
