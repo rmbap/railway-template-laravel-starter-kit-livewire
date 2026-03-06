@@ -7,6 +7,7 @@ use App\Livewire\Settings\TwoFactor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AdminController;
 
 Route::get('/up', function () {
     return response('OK', 200);
@@ -1083,4 +1084,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('settings/password', Password::class)->name('user-password.edit');
     Route::get('settings/appearance', Appearance::class)->name('appearance.edit');
     Route::get('settings/two-factor', TwoFactor::class)->name('two-factor.show');
+    Route::get('/admin', [AdminController::class, 'index'])->name('admin.index');
+Route::get('/admin/company/{id}', [AdminController::class, 'show'])->name('admin.company.show');
+
 });
