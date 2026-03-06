@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\CompanyController;
 
 Route::get('/up', function () {
     return response('OK', 200);
@@ -28,62 +29,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     /**
      * FORM: CRIAR EMPRESA
      */
-    Route::get('/company/create', function () {
-        return '
-            <div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial; max-width:720px; margin:24px auto; padding:0 14px;">
-                <h1>Criar empresa</h1>
-
-                <form method="POST" action="/company/create" style="margin-top:14px;">
-                    <input type="hidden" name="_token" value="' . csrf_token() . '">
-
-                    <label>Nome da empresa</label><br>
-                    <input name="name" required style="padding:10px; width:100%; max-width:420px; border:1px solid #ddd; border-radius:10px;"><br><br>
-
-                    <button type="submit" style="padding:10px 14px;border:1px solid #333;border-radius:10px;background:#111;color:#fff;cursor:pointer;">
-                        Salvar
-                    </button>
-                </form>
-            </div>
-        ';
-    })->name('company.create');
+    Route::get('/company/create', [CompanyController::class, 'create'])->name('company.create');
 
     /**
      * POST: SALVAR EMPRESA
      */
-    Route::post('/company/create', function (Request $request) {
-        $request->validate(['name' => 'required|min:2|max:120']);
-
-        DB::statement("CREATE TABLE IF NOT EXISTS companies (
-            id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(120) NOT NULL,
-            owner_user_id BIGINT UNSIGNED NOT NULL,
-            created_at TIMESTAMP NULL,
-            updated_at TIMESTAMP NULL
-        )");
-
-        $columns = DB::select("SHOW COLUMNS FROM users LIKE 'company_id'");
-        if (count($columns) === 0) {
-            DB::statement("ALTER TABLE users ADD company_id BIGINT UNSIGNED NULL");
-        }
-
-        $userId = auth()->id();
-
-        DB::table('companies')->insert([
-            'name' => $request->name,
-            'owner_user_id' => $userId,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        $companyId = DB::getPdo()->lastInsertId();
-
-        DB::table('users')->where('id', $userId)->update([
-            'company_id' => $companyId
-        ]);
-
-        return redirect('/dashboard');
-    })->name('company.store');
-
+    Route::post('/company/create', [CompanyController::class, 'store'])->name('company.store');
     /**
      * FORM: REGISTRAR MÉTRICAS
      */
