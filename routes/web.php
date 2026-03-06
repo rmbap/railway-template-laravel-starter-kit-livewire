@@ -15,24 +15,39 @@ Route::get('/', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
-    // Dashboard: se não tiver empresa, manda criar
+    /**
+     * DASHBOARD
+     * Se o usuário não tiver empresa, manda criar.
+     * Também garante que a coluna users.company_id exista (evita erro 500).
+     */
     Route::get('/dashboard', function () {
+
+        // Garante que a coluna company_id exista no users
+        $columns = DB::select("SHOW COLUMNS FROM users LIKE 'company_id'");
+        if (count($columns) === 0) {
+            DB::statement("ALTER TABLE users ADD company_id BIGINT UNSIGNED NULL");
+        }
+
         $userId = auth()->id();
         $user = DB::table('users')->where('id', $userId)->first();
 
-        if (!$user || !$user->company_id) {
+        $companyId = $user->company_id ?? null;
+
+        if (!$user || !$companyId) {
             return redirect('/company/create');
         }
 
         return view('dashboard');
     })->name('dashboard');
 
-    // Tela para criar empresa
+    /**
+     * FORM: CRIAR EMPRESA
+     */
     Route::get('/company/create', function () {
         return '
             <h1>Criar empresa</h1>
             <form method="POST" action="/company/create">
-                <input type="hidden" name="_token" value="'.csrf_token().'">
+                <input type="hidden" name="_token" value="' . csrf_token() . '">
                 <label>Nome da empresa</label><br>
                 <input name="name" required style="padding:8px; width:320px;"><br><br>
                 <button type="submit" style="padding:10px 14px;">Salvar</button>
@@ -40,10 +55,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ';
     })->name('company.create');
 
-    // Salvar empresa
+    /**
+     * POST: SALVAR EMPRESA
+     * Cria tabela companies se não existir e liga usuário à empresa.
+     */
     Route::post('/company/create', function (Request $request) {
         $request->validate(['name' => 'required|min:2|max:120']);
 
+        // Cria tabela companies se não existir
         DB::statement("CREATE TABLE IF NOT EXISTS companies (
             id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(120) NOT NULL,
@@ -52,6 +71,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             updated_at TIMESTAMP NULL
         )");
 
+        // Cria coluna company_id em users se não existir
         $columns = DB::select("SHOW COLUMNS FROM users LIKE 'company_id'");
         if (count($columns) === 0) {
             DB::statement("ALTER TABLE users ADD company_id BIGINT UNSIGNED NULL");
@@ -59,6 +79,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         $userId = auth()->id();
 
+        // Cria empresa
         DB::table('companies')->insert([
             'name' => $request->name,
             'owner_user_id' => $userId,
@@ -66,8 +87,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'updated_at' => now(),
         ]);
 
+        // Pega o ID recém-criado
         $companyId = DB::getPdo()->lastInsertId();
 
+        // Liga usuário à empresa
         DB::table('users')->where('id', $userId)->update([
             'company_id' => $companyId
         ]);
@@ -75,8 +98,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return redirect('/dashboard');
     })->name('company.store');
 
-    // Settings (do template)
+    /**
+     * SETTINGS (Starter Kit)
+     */
     Route::redirect('settings', 'settings/profile');
+
     Route::get('settings/profile', Profile::class)->name('profile.edit');
     Route::get('settings/password', Password::class)->name('user-password.edit');
     Route::get('settings/appearance', Appearance::class)->name('appearance.edit');
@@ -88,7 +114,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 && Features::optionEnabled(Features::twoFactorAuthentication(), 'confirmPassword'),
                 ['password.confirm'],
                 [],
-            ),
+            )
         )
         ->name('two-factor.show');
 });
