@@ -16,7 +16,7 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
 
     /**
-     * DASHBOARD (cara de SaaS)
+     * DASHBOARD
      */
     Route::get('/dashboard', function () {
 
@@ -25,18 +25,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
         if (count($columns) === 0) {
             DB::statement("ALTER TABLE users ADD company_id BIGINT UNSIGNED NULL");
         }
-// garante tabela recommendations
-    DB::statement("CREATE TABLE IF NOT EXISTS recommendations (
-        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        company_id BIGINT UNSIGNED NOT NULL,
-        created_at TIMESTAMP NULL,
-        from_channel VARCHAR(100),
-        to_channel VARCHAR(100),
-        pct_move INT,
-        reason TEXT,
-        expected_leads_gain DECIMAL(10,2),
-        expected_revenue_gain DECIMAL(10,2)
-    )");
+
+        // garante tabela recommendations
+        DB::statement("CREATE TABLE IF NOT EXISTS recommendations (
+            id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            company_id BIGINT UNSIGNED NOT NULL,
+            created_at TIMESTAMP NULL,
+            from_channel VARCHAR(100),
+            to_channel VARCHAR(100),
+            pct_move INT,
+            reason TEXT,
+            expected_leads_gain DECIMAL(10,2),
+            expected_revenue_gain DECIMAL(10,2),
+            updated_at TIMESTAMP NULL
+        )");
+
         $userId = auth()->id();
         $user = DB::table('users')->where('id', $userId)->first();
         $companyId = $user->company_id ?? null;
@@ -72,8 +75,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         $channels = [];
         foreach ($rows as $r) {
-            $spend = (float)$r->spend_sum;
-            $conv  = (int)$r->conv_sum;
+            $spend = (float) $r->spend_sum;
+            $conv  = (int) $r->conv_sum;
             $cpa   = $conv > 0 ? ($spend / $conv) : null;
 
             $channels[] = [
@@ -84,11 +87,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ];
         }
 
-        // recomendação simples
         $withCpa = array_filter($channels, fn($x) => $x['cpa'] !== null);
-        usort($withCpa, fn($a,$b) => $a['cpa'] <=> $b['cpa']);
+        usort($withCpa, fn($a, $b) => $a['cpa'] <=> $b['cpa']);
         $best = $withCpa[0] ?? null;
-        $worst = $withCpa[count($withCpa)-1] ?? null;
+        $worst = $withCpa[count($withCpa) - 1] ?? null;
 
         $recommendationHtml = '';
         if (!$best || !$worst || $best['channel'] === $worst['channel']) {
@@ -102,7 +104,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 <div style="padding:14px;border:1px solid #ddd;border-radius:10px;">
                     <div style="font-size:18px;"><b>Recomendação</b></div>
                     <div style="margin-top:6px;">Mover verba de <b>'.$worst['channel'].'</b> → <b>'.$best['channel'].'</b></div>
-                    <div style="margin-top:6px;color:#444;">Motivo: CPA de '.$worst['channel'].' é ~'.number_format(($ratio-1)*100, 0).' % maior que '.$best['channel'].'.</div>
+                    <div style="margin-top:6px;color:#444;">Motivo: CPA de '.$worst['channel'].' é ~'.number_format(($ratio - 1) * 100, 0).' % maior que '.$best['channel'].'.</div>
                     <form method="POST" action="/recommendation/run" style="margin-top:10px;">
                         <input type="hidden" name="_token" value="'.csrf_token().'">
                         <input type="hidden" name="window_days" value="'.$windowDays.'">
@@ -119,9 +121,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             }
         }
 
-        // HTML do dashboard
         $html = '
-        <div style="font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial; max-width: 980px; margin: 24px auto; padding: 0 14px;">
+        <div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial; max-width:980px; margin:24px auto; padding:0 14px;">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
                 <div>
                     <div style="font-size:26px;font-weight:700;">Marketing Decision Engine</div>
@@ -133,7 +134,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 </div>
             </div>
 
-            <div style="margin-top:18px; display:grid; grid-template-columns: 1fr; gap:14px;">
+            <div style="margin-top:18px; display:grid; grid-template-columns:1fr; gap:14px;">
         ';
 
         if (count($channels) === 0) {
@@ -333,7 +334,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('metrics.store');
 
     /**
-     * ANÁLISE (últimos 14 dias): CPA por canal + recomendação simples
+     * ANÁLISE
      */
     Route::get('/analysis', function () {
 
@@ -394,9 +395,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         }
 
         $withCpa = array_filter($channels, fn($x) => $x['cpa'] !== null);
-        usort($withCpa, fn($a,$b) => $a['cpa'] <=> $b['cpa']);
+        usort($withCpa, fn($a, $b) => $a['cpa'] <=> $b['cpa']);
         $best = $withCpa[0] ?? null;
-        $worst = $withCpa[count($withCpa)-1] ?? null;
+        $worst = $withCpa[count($withCpa) - 1] ?? null;
 
         $recommendationHtml = '';
         if (!$best || !$worst || $best['channel'] === $worst['channel']) {
@@ -406,7 +407,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
             if ($ratio !== null && $ratio >= 1.3) {
                 $recommendationHtml =
                     '<p><b>Recomendação:</b> reduzir verba de <b>'.$worst['channel'].'</b> e aumentar <b>'.$best['channel'].'</b>.</p>
-                     <p>Motivo: CPA de '.$worst['channel'].' é ~'.number_format(($ratio-1)*100, 0).' % maior que '.$best['channel'].'.</p>
+                     <p>Motivo: CPA de '.$worst['channel'].' é ~'.number_format(($ratio - 1) * 100, 0).' % maior que '.$best['channel'].'.</p>
+                     <p>
+                        <a href="/simulate?from='.urlencode($worst['channel']).'&to='.urlencode($best['channel']).'&pct=10">Simular 10%</a> |
+                        <a href="/simulate?from='.urlencode($worst['channel']).'&to='.urlencode($best['channel']).'&pct=20">Simular 20%</a> |
+                        <a href="/simulate?from='.urlencode($worst['channel']).'&to='.urlencode($best['channel']).'&pct=30">Simular 30%</a>
+                     </p>
                      <form method="POST" action="/recommendation/run" style="margin-top:10px;">
                         <input type="hidden" name="_token" value="'.csrf_token().'">
                         <input type="hidden" name="window_days" value="'.$windowDays.'">
@@ -451,7 +457,86 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('analysis');
 
     /**
-     * SALVAR RECOMENDAÇÃO (opcional)
+     * SIMULAÇÃO
+     */
+    Route::get('/simulate', function (Request $request) {
+
+        $from = $request->get('from');
+        $to = $request->get('to');
+        $pct = (float) $request->get('pct', 20);
+
+        $userId = auth()->id();
+        $user = DB::table('users')->where('id', $userId)->first();
+        $companyId = $user->company_id ?? null;
+
+        $rows = DB::table('daily_metrics')
+            ->selectRaw('channel, SUM(spend) as spend_sum, SUM(conversions) as conv_sum')
+            ->where('company_id', $companyId)
+            ->groupBy('channel')
+            ->get();
+
+        $data = [];
+
+        foreach ($rows as $r) {
+            $spend = (float) $r->spend_sum;
+            $conv = (int) $r->conv_sum;
+
+            $data[$r->channel] = [
+                'spend' => $spend,
+                'conv' => $conv,
+                'cpa' => $conv > 0 ? $spend / $conv : null
+            ];
+        }
+
+        if (!isset($data[$from]) || !isset($data[$to])) {
+            return "Canais inválidos";
+        }
+
+        $move = $data[$from]['spend'] * ($pct / 100);
+
+        $fromNew = $data[$from]['spend'] - $move;
+        $toNew = $data[$to]['spend'] + $move;
+
+        $convBefore =
+            $data[$from]['spend'] / $data[$from]['cpa'] +
+            $data[$to]['spend'] / $data[$to]['cpa'];
+
+        $convAfter =
+            $fromNew / $data[$from]['cpa'] +
+            $toNew / $data[$to]['cpa'];
+
+        $delta = $convAfter - $convBefore;
+
+        return "
+        <div style='font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial; max-width:720px; margin:24px auto; padding:0 14px;'>
+            <h1>Simulação</h1>
+
+            <p>Mover $pct% de <b>$from</b> para <b>$to</b></p>
+
+            <h2>Antes</h2>
+
+            Spend $from: ".number_format($data[$from]['spend'], 2)."<br>
+            Spend $to: ".number_format($data[$to]['spend'], 2)."<br>
+
+            <h2>Depois</h2>
+
+            Spend $from: ".number_format($fromNew, 2)."<br>
+            Spend $to: ".number_format($toNew, 2)."<br>
+
+            <h2>Impacto estimado</h2>
+
+            Conversões antes: ".number_format($convBefore, 2)."<br>
+            Conversões depois: ".number_format($convAfter, 2)."<br><br>
+
+            <b>Δ Conversões: ".number_format($delta, 2)."</b>
+
+            <p><a href='/analysis'>Voltar</a></p>
+        </div>
+        ";
+    })->name('simulate');
+
+    /**
+     * SALVAR RECOMENDAÇÃO
      */
     Route::post('/recommendation/run', function (Request $request) {
 
@@ -486,22 +571,27 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         $channels = [];
         foreach ($rows as $r) {
-            $spend = (float)$r->spend_sum;
-            $conv = (int)$r->conv_sum;
+            $spend = (float) $r->spend_sum;
+            $conv = (int) $r->conv_sum;
             $cpa = $conv > 0 ? ($spend / $conv) : null;
-            $channels[] = ['channel'=>$r->channel,'spend'=>$spend,'conversions'=>$conv,'cpa'=>$cpa];
+            $channels[] = [
+                'channel' => $r->channel,
+                'spend' => $spend,
+                'conversions' => $conv,
+                'cpa' => $cpa
+            ];
         }
 
         $withCpa = array_filter($channels, fn($x) => $x['cpa'] !== null);
-        usort($withCpa, fn($a,$b) => $a['cpa'] <=> $b['cpa']);
+        usort($withCpa, fn($a, $b) => $a['cpa'] <=> $b['cpa']);
         $best = $withCpa[0] ?? null;
-        $worst = $withCpa[count($withCpa)-1] ?? null;
+        $worst = $withCpa[count($withCpa) - 1] ?? null;
 
         $decision = 'Sem decisão (dados insuficientes)';
         if ($best && $worst && $best['channel'] !== $worst['channel'] && $best['cpa'] > 0) {
             $ratio = $worst['cpa'] / $best['cpa'];
             if ($ratio >= 1.3) {
-                $decision = 'Reduzir '.$worst['channel'].' e aumentar '.$best['channel'].' (CPA pior ~'.round(($ratio-1)*100).'%)';
+                $decision = 'Reduzir '.$worst['channel'].' e aumentar '.$best['channel'].' (CPA pior ~'.round(($ratio - 1) * 100).'%)';
             } else {
                 $decision = 'Manter (diferença pequena)';
             }
@@ -536,174 +626,5 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('settings/appearance', Appearance::class)->name('appearance.edit');
 
     Route::get('settings/two-factor', TwoFactor::class)
-        ->middleware(
-            when(
-                Features::canManageTwoFactorAuthentication()
-                && Features::optionEnabled(Features::twoFactorAuthentication(), 'confirmPassword'),
-                ['password.confirm'],
-                [],
-            )
-        )
         ->name('two-factor.show');
-    /**
- * ANALYSIS
- */
-Route::get('/analysis', function () {
-
-    $userId = auth()->id();
-    $user = DB::table('users')->where('id', $userId)->first();
-    $companyId = $user->company_id ?? null;
-
-    if (!$companyId) return redirect('/company/create');
-
-    $rows = DB::table('daily_metrics')
-        ->selectRaw('channel, SUM(spend) as spend_sum, SUM(conversions) as conv_sum')
-        ->where('company_id', $companyId)
-        ->groupBy('channel')
-        ->get();
-
-    $channels = [];
-
-    foreach ($rows as $r) {
-
-        $spend = (float)$r->spend_sum;
-        $conv = (int)$r->conv_sum;
-
-        $cpa = $conv > 0 ? $spend / $conv : null;
-
-        $channels[] = [
-            'channel'=>$r->channel,
-            'spend'=>$spend,
-            'conv'=>$conv,
-            'cpa'=>$cpa
-        ];
-    }
-
-    if(count($channels) < 2){
-        return "<h1>Análise</h1><p>Cadastre métricas para pelo menos 2 canais.</p><a href='/dashboard'>Voltar</a>";
-    }
-
-    usort($channels, fn($a,$b)=> $a['cpa'] <=> $b['cpa']);
-
-    $best = $channels[0];
-    $worst = $channels[count($channels)-1];
-
-    $html = "<h1>Análise</h1>";
-
-    $html .= "<table border='1' cellpadding='10'>
-    <tr>
-    <th>Canal</th>
-    <th>Spend</th>
-    <th>Conversions</th>
-    <th>CPA</th>
-    </tr>";
-
-    foreach($channels as $c){
-
-        $html .= "<tr>
-        <td>{$c['channel']}</td>
-        <td>".number_format($c['spend'],2)."</td>
-        <td>{$c['conv']}</td>
-        <td>".number_format($c['cpa'],2)."</td>
-        </tr>";
-    }
-
-    $html .= "</table>";
-
-    $html .= "<h2>Recomendação</h2>";
-
-    $html .= "<p>Mover verba de <b>{$worst['channel']}</b> → <b>{$best['channel']}</b></p>";
-
-    $html .= "
-    <p>
-    <a href='/simulate?from={$worst['channel']}&to={$best['channel']}&pct=10'>Simular 10%</a> |
-    <a href='/simulate?from={$worst['channel']}&to={$best['channel']}&pct=20'>Simular 20%</a> |
-    <a href='/simulate?from={$worst['channel']}&to={$best['channel']}&pct=30'>Simular 30%</a>
-    </p>";
-
-    $html .= "<p><a href='/dashboard'>Voltar</a></p>";
-
-    return $html;
-});
-
-
-/**
- * SIMULATION
- */
-Route::get('/simulate', function (Request $request) {
-
-    $from = $request->get('from');
-    $to = $request->get('to');
-    $pct = (float)$request->get('pct',20);
-
-    $userId = auth()->id();
-    $user = DB::table('users')->where('id',$userId)->first();
-    $companyId = $user->company_id;
-
-    $rows = DB::table('daily_metrics')
-        ->selectRaw('channel, SUM(spend) as spend_sum, SUM(conversions) as conv_sum')
-        ->where('company_id',$companyId)
-        ->groupBy('channel')
-        ->get();
-
-    $data = [];
-
-    foreach($rows as $r){
-
-        $spend = (float)$r->spend_sum;
-        $conv = (int)$r->conv_sum;
-
-        $data[$r->channel] = [
-            'spend'=>$spend,
-            'conv'=>$conv,
-            'cpa'=>$conv>0?$spend/$conv:null
-        ];
-    }
-
-    if(!isset($data[$from]) || !isset($data[$to])){
-        return "Canais inválidos";
-    }
-
-    $move = $data[$from]['spend'] * ($pct/100);
-
-    $fromNew = $data[$from]['spend'] - $move;
-    $toNew = $data[$to]['spend'] + $move;
-
-    $convBefore =
-        $data[$from]['spend']/$data[$from]['cpa'] +
-        $data[$to]['spend']/$data[$to]['cpa'];
-
-    $convAfter =
-        $fromNew/$data[$from]['cpa'] +
-        $toNew/$data[$to]['cpa'];
-
-    $delta = $convAfter - $convBefore;
-
-    return "
-
-    <h1>Simulação</h1>
-
-    <p>Mover $pct% de <b>$from</b> para <b>$to</b></p>
-
-    <h2>Antes</h2>
-
-    Spend $from: ".number_format($data[$from]['spend'],2)."<br>
-    Spend $to: ".number_format($data[$to]['spend'],2)."<br>
-
-    <h2>Depois</h2>
-
-    Spend $from: ".number_format($fromNew,2)."<br>
-    Spend $to: ".number_format($toNew,2)."<br>
-
-    <h2>Impacto estimado</h2>
-
-    Conversões antes: ".number_format($convBefore,2)."<br>
-    Conversões depois: ".number_format($convAfter,2)."<br><br>
-
-    <b>Δ Conversões: ".number_format($delta,2)."</b>
-
-    <p><a href='/analysis'>Voltar</a></p>
-
-    ";
-});
 });
