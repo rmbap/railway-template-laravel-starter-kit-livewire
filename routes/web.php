@@ -4,19 +4,18 @@ use App\Livewire\Settings\Appearance;
 use App\Livewire\Settings\Password;
 use App\Livewire\Settings\Profile;
 use App\Livewire\Settings\TwoFactor;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 
 Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
-// ✅ Dashboard agora é controlado pela nossa regra de "tem empresa?"
 Route::middleware(['auth', 'verified'])->group(function () {
 
-    // 3) Se o usuário não tem empresa, manda criar
+    // Dashboard: se não tiver empresa, manda criar
     Route::get('/dashboard', function () {
         $userId = auth()->id();
         $user = DB::table('users')->where('id', $userId)->first();
@@ -28,7 +27,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return view('dashboard');
     })->name('dashboard');
 
-    // 1) Tela simples para criar empresa
+    // Tela para criar empresa
     Route::get('/company/create', function () {
         return '
             <h1>Criar empresa</h1>
@@ -41,11 +40,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ';
     })->name('company.create');
 
-    // 2) Salva empresa no banco (bem simples)
+    // Salvar empresa
     Route::post('/company/create', function (Request $request) {
         $request->validate(['name' => 'required|min:2|max:120']);
 
-        // cria tabela se ainda não existir (gambiarra simples de iniciante)
         DB::statement("CREATE TABLE IF NOT EXISTS companies (
             id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(120) NOT NULL,
@@ -54,7 +52,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             updated_at TIMESTAMP NULL
         )");
 
-        // cria coluna company_id em users se não existir
         $columns = DB::select("SHOW COLUMNS FROM users LIKE 'company_id'");
         if (count($columns) === 0) {
             DB::statement("ALTER TABLE users ADD company_id BIGINT UNSIGNED NULL");
@@ -62,7 +59,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         $userId = auth()->id();
 
-        // cria empresa
         DB::table('companies')->insert([
             'name' => $request->name,
             'owner_user_id' => $userId,
@@ -72,7 +68,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         $companyId = DB::getPdo()->lastInsertId();
 
-        // liga usuário à empresa
         DB::table('users')->where('id', $userId)->update([
             'company_id' => $companyId
         ]);
@@ -80,9 +75,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return redirect('/dashboard');
     })->name('company.store');
 
-    // Rotas de settings que já existiam
+    // Settings (do template)
     Route::redirect('settings', 'settings/profile');
-
     Route::get('settings/profile', Profile::class)->name('profile.edit');
     Route::get('settings/password', Password::class)->name('user-password.edit');
     Route::get('settings/appearance', Appearance::class)->name('appearance.edit');
@@ -91,7 +85,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware(
             when(
                 Features::canManageTwoFactorAuthentication()
-                    && Features::optionEnabled(Features::twoFactorAuthentication(), 'confirmPassword'),
+                && Features::optionEnabled(Features::twoFactorAuthentication(), 'confirmPassword'),
                 ['password.confirm'],
                 [],
             ),
