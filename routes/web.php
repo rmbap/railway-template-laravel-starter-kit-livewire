@@ -534,4 +534,175 @@ Route::middleware(['auth', 'verified'])->group(function () {
             )
         )
         ->name('two-factor.show');
+    /**
+ * SIMULAÇÃO DE ORÇAMENTO (MVP)
+ * Exemplo:
+ * /simulate?from=Meta&to=Google&pct=20&days=14
+ */
+Route::get('/simulate', function (Request $request) {
+
+    // garante tabela daily_metrics
+    DB::statement("CREATE TABLE IF NOT EXISTS daily_metrics (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        company_id BIGINT UNSIGNED NOT NULL,
+        date DATE NOT NULL,
+        channel VARCHAR(100) NOT NULL,
+        spend DECIMAL(10,2) NOT NULL,
+        conversions INT NOT NULL,
+        revenue DECIMAL(10,2) NULL,
+        created_at TIMESTAMP NULL,
+        updated_at TIMESTAMP NULL
+    )");
+
+    $userId = auth()->id();
+    $user = DB::table('users')->where('id', $userId)->first();
+    $companyId = $user->company_id ?? null;
+
+    if (!$companyId) {
+        return redirect('/company/create');
+    }
+
+    $days = (int) ($request->get('days', 14));
+    if ($days < 3) $days = 3;
+    if ($days > 90) $days = 90;
+
+    $end = now()->toDateString();
+    $start = now()->subDays($days - 1)->toDateString();
+
+    // agrega spend e conversions por canal na janela
+    $rows = DB::table('daily_metrics')
+        ->selectRaw('channel, SUM(spend) as spend_sum, SUM(conversions) as conv_sum')
+        ->where('company_id', $companyId)
+        ->whereBetween('date', [$start, $end])
+        ->groupBy('channel')
+        ->get();
+
+    // mapeia por canal
+    $byChannel = [];
+    foreach ($rows as $r) {
+        $spend = (float) $r->spend_sum;
+        $conv  = (int) $r->conv_sum;
+        $cpa   = $conv > 0 ? ($spend / $conv) : null;
+
+        $byChannel[$r->channel] = [
+            'spend' => $spend,
+            'conv' => $conv,
+            'cpa' => $cpa,
+        ];
+    }
+
+    $from = $request->get('from');
+    $to   = $request->get('to');
+    $pct  = (float) $request->get('pct', 20);
+
+    // validações simples
+    if (!$from || !$to) {
+        $list = implode(', ', array_map('htmlspecialchars', array_keys($byChannel)));
+        return "
+            <h1>Simulação</h1>
+            <p>Faltou informar <b>from</b> e <b>to</b>.</p>
+            <p>Canais encontrados: <b>{$list}</b></p>
+            <p>Exemplo: <code>/simulate?from=Meta&to=Google&pct=20&days={$days}</code></p>
+            <p><a href=\"/analysis\">Voltar</a></p>
+        ";
+    }
+
+    if (!isset($byChannel[$from]) || !isset($byChannel[$to])) {
+        $list = implode(', ', array_map('htmlspecialchars', array_keys($byChannel)));
+        return "
+            <h1>Simulação</h1>
+            <p>Canais inválidos. Canais encontrados: <b>{$list}</b></p>
+            <p><a href=\"/analysis\">Voltar</a></p>
+        ";
+    }
+
+    $pct = max(1, min(80, $pct)); // limita de 1% a 80%
+
+    $fromSpend = $byChannel[$from]['spend'];
+    $toSpend   = $byChannel[$to]['spend'];
+
+    if ($fromSpend <= 0 || $toSpend < 0) {
+        return "
+            <h1>Simulação</h1>
+            <p>Spend insuficiente para simular.</p>
+            <p><a href=\"/analysis\">Voltar</a></p>
+        ";
+    }
+
+    $fromCpa = $byChannel[$from]['cpa'];
+    $toCpa   = $byChannel[$to]['cpa'];
+
+    if ($fromCpa === null || $toCpa === null) {
+        return "
+            <h1>Simulação</h1>
+            <p>Precisa ter <b>conversions &gt; 0</b> nos dois canais para calcular CPA e simular.</p>
+            <p><a href=\"/analysis\">Voltar</a></p>
+        ";
+    }
+
+    // quanto mover
+    $moveAmount = $fromSpend * ($pct / 100.0);
+
+    // budgets simulados
+    $fromSpendNew = max(0, $fromSpend - $moveAmount);
+    $toSpendNew   = $toSpend + $moveAmount;
+
+    // estimativa simples: conversions = spend / CPA (assumindo CPA constante)
+    $fromConvEstOld = $fromSpend / $fromCpa;
+    $toConvEstOld   = $toSpend / $toCpa;
+
+    $fromConvEstNew = $fromSpendNew / $fromCpa;
+    $toConvEstNew   = $toSpendNew / $toCpa;
+
+    $totalOld = $fromConvEstOld + $toConvEstOld;
+    $totalNew = $fromConvEstNew + $toConvEstNew;
+
+    $delta = $totalNew - $totalOld;
+
+    $fmtMoney = fn($v) => number_format($v, 2, ',', '.');
+    $fmtNum = fn($v) => number_format($v, 2, ',', '.');
+
+    return '
+        <div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial; max-width:980px; margin:24px auto; padding:0 14px;">
+            <h1>Simulação de orçamento</h1>
+            <p>Janela: '.$days.' dias ('.$start.' → '.$end.')</p>
+
+            <div style="padding:14px;border:1px solid #ddd;border-radius:10px;">
+                <div style="font-size:18px;font-weight:700;">Mover '.$pct.'% do budget</div>
+                <div style="margin-top:6px;">De <b>'.htmlspecialchars($from).'</b> → Para <b>'.htmlspecialchars($to).'</b></div>
+                <div style="margin-top:6px;color:#444;">Valor movido: <b>R$ '.$fmtMoney($moveAmount).'</b></div>
+            </div>
+
+            <div style="margin-top:14px; padding:14px;border:1px solid #ddd;border-radius:10px;">
+                <div style="font-size:16px;font-weight:700;">Antes</div>
+                <ul>
+                    <li>'.htmlspecialchars($from).': Spend R$ '.$fmtMoney($fromSpend).' | CPA '.$fmtMoney($fromCpa).' | Conv est. '.$fmtNum($fromConvEstOld).'</li>
+                    <li>'.htmlspecialchars($to).': Spend R$ '.$fmtMoney($toSpend).' | CPA '.$fmtMoney($toCpa).' | Conv est. '.$fmtNum($toConvEstOld).'</li>
+                    <li><b>Total conv est.: '.$fmtNum($totalOld).'</b></li>
+                </ul>
+            </div>
+
+            <div style="margin-top:14px; padding:14px;border:1px solid #ddd;border-radius:10px;">
+                <div style="font-size:16px;font-weight:700;">Depois</div>
+                <ul>
+                    <li>'.htmlspecialchars($from).': Spend R$ '.$fmtMoney($fromSpendNew).' | CPA '.$fmtMoney($fromCpa).' | Conv est. '.$fmtNum($fromConvEstNew).'</li>
+                    <li>'.htmlspecialchars($to).': Spend R$ '.$fmtMoney($toSpendNew).' | CPA '.$fmtMoney($toCpa).' | Conv est. '.$fmtNum($toConvEstNew).'</li>
+                    <li><b>Total conv est.: '.$fmtNum($totalNew).'</b></li>
+                </ul>
+            </div>
+
+            <div style="margin-top:14px; padding:14px;border:1px solid #ddd;border-radius:10px;">
+                <div style="font-size:18px;font-weight:700;">Impacto estimado</div>
+                <div style="margin-top:6px;">Δ conversões (estimado): <b>'.$fmtNum($delta).'</b></div>
+                <div style="margin-top:6px;color:#666;font-size:13px;">
+                    Assunção do MVP: CPA permanece constante ao mover budget. Em canais reais, o CPA pode piorar/melhorar com escala.
+                </div>
+            </div>
+
+            <p style="margin-top:16px;">
+                <a href="/analysis">Voltar para análise</a> | <a href="/dashboard">Dashboard</a>
+            </p>
+        </div>
+    ';
+})->name('simulate');
 });
