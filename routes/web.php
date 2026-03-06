@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\MetricsController;
 
 Route::get('/up', function () {
     return response('OK', 200);
@@ -38,89 +39,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     /**
      * FORM: REGISTRAR MÉTRICAS
      */
-    Route::get('/metrics/create', function () {
-        return '
-            <div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial; max-width:720px; margin:24px auto; padding:0 14px;">
-                <h1>Registrar métricas</h1>
-
-                <form method="POST" action="/metrics/create" style="margin-top:14px;">
-                    <input type="hidden" name="_token" value="' . csrf_token() . '">
-
-                    <label>Data</label><br>
-                    <input type="date" name="date" required style="padding:10px;border:1px solid #ddd;border-radius:10px;"><br><br>
-
-                    <label>Canal</label><br>
-                    <input name="channel" placeholder="Google / Meta / TikTok" required style="padding:10px; width:100%; max-width:420px; border:1px solid #ddd; border-radius:10px;"><br><br>
-
-                    <label>Conversions / Leads</label><br>
-                    <input name="conversions" type="number" required style="padding:10px; width:200px; border:1px solid #ddd; border-radius:10px;"><br><br>
-
-                    <label>Spend</label><br>
-                    <input name="spend" type="number" step="0.01" required style="padding:10px; width:200px; border:1px solid #ddd; border-radius:10px;"><br><br>
-
-                    <label>Revenue / Faturamento</label><br>
-                    <input name="revenue" type="number" step="0.01" style="padding:10px; width:200px; border:1px solid #ddd; border-radius:10px;"><br><br>
-
-                    <button type="submit" style="padding:10px 14px;border:1px solid #333;border-radius:10px;background:#111;color:#fff;cursor:pointer;">
-                        Salvar
-                    </button>
-                </form>
-
-                <p style="margin-top:16px;">
-                    <a href="/dashboard">Voltar ao dashboard</a> |
-                    <a href="/analysis">Ver análise</a>
-                </p>
-            </div>
-        ';
-    })->name('metrics.create');
-
+   Route::get('/metrics/create', [MetricsController::class, 'create'])->name('metrics.create');
     /**
      * POST: SALVAR MÉTRICAS
      */
-    Route::post('/metrics/create', function (Request $request) {
-
-        $request->validate([
-            'date' => 'required',
-            'channel' => 'required|min:1|max:100',
-            'spend' => 'required|numeric|min:0',
-            'conversions' => 'required|integer|min:0',
-            'revenue' => 'nullable|numeric|min:0',
-        ]);
-
-        DB::statement("CREATE TABLE IF NOT EXISTS daily_metrics (
-            id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-            company_id BIGINT UNSIGNED NOT NULL,
-            date DATE NOT NULL,
-            channel VARCHAR(100) NOT NULL,
-            spend DECIMAL(10,2) NOT NULL,
-            conversions INT NOT NULL,
-            revenue DECIMAL(10,2) NULL,
-            created_at TIMESTAMP NULL,
-            updated_at TIMESTAMP NULL
-        )");
-
-        $userId = auth()->id();
-        $user = DB::table('users')->where('id', $userId)->first();
-        $companyId = $user->company_id ?? null;
-
-        if (!$companyId) {
-            return redirect('/company/create');
-        }
-
-        DB::table('daily_metrics')->insert([
-            'company_id' => $companyId,
-            'date' => $request->date,
-            'channel' => $request->channel,
-            'spend' => $request->spend,
-            'conversions' => $request->conversions,
-            'revenue' => $request->revenue,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        return redirect('/analysis');
-    })->name('metrics.store');
-
+   Route::post('/metrics/create', [MetricsController::class, 'store'])->name('metrics.store');
     /**
      * ANÁLISE
      */
