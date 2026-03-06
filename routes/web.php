@@ -534,4 +534,165 @@ Route::middleware(['auth', 'verified'])->group(function () {
             )
         )
         ->name('two-factor.show');
+    /**
+ * ANALYSIS
+ */
+Route::get('/analysis', function () {
+
+    $userId = auth()->id();
+    $user = DB::table('users')->where('id', $userId)->first();
+    $companyId = $user->company_id ?? null;
+
+    if (!$companyId) return redirect('/company/create');
+
+    $rows = DB::table('daily_metrics')
+        ->selectRaw('channel, SUM(spend) as spend_sum, SUM(conversions) as conv_sum')
+        ->where('company_id', $companyId)
+        ->groupBy('channel')
+        ->get();
+
+    $channels = [];
+
+    foreach ($rows as $r) {
+
+        $spend = (float)$r->spend_sum;
+        $conv = (int)$r->conv_sum;
+
+        $cpa = $conv > 0 ? $spend / $conv : null;
+
+        $channels[] = [
+            'channel'=>$r->channel,
+            'spend'=>$spend,
+            'conv'=>$conv,
+            'cpa'=>$cpa
+        ];
+    }
+
+    if(count($channels) < 2){
+        return "<h1>Análise</h1><p>Cadastre métricas para pelo menos 2 canais.</p><a href='/dashboard'>Voltar</a>";
+    }
+
+    usort($channels, fn($a,$b)=> $a['cpa'] <=> $b['cpa']);
+
+    $best = $channels[0];
+    $worst = $channels[count($channels)-1];
+
+    $html = "<h1>Análise</h1>";
+
+    $html .= "<table border='1' cellpadding='10'>
+    <tr>
+    <th>Canal</th>
+    <th>Spend</th>
+    <th>Conversions</th>
+    <th>CPA</th>
+    </tr>";
+
+    foreach($channels as $c){
+
+        $html .= "<tr>
+        <td>{$c['channel']}</td>
+        <td>".number_format($c['spend'],2)."</td>
+        <td>{$c['conv']}</td>
+        <td>".number_format($c['cpa'],2)."</td>
+        </tr>";
+    }
+
+    $html .= "</table>";
+
+    $html .= "<h2>Recomendação</h2>";
+
+    $html .= "<p>Mover verba de <b>{$worst['channel']}</b> → <b>{$best['channel']}</b></p>";
+
+    $html .= "
+    <p>
+    <a href='/simulate?from={$worst['channel']}&to={$best['channel']}&pct=10'>Simular 10%</a> |
+    <a href='/simulate?from={$worst['channel']}&to={$best['channel']}&pct=20'>Simular 20%</a> |
+    <a href='/simulate?from={$worst['channel']}&to={$best['channel']}&pct=30'>Simular 30%</a>
+    </p>";
+
+    $html .= "<p><a href='/dashboard'>Voltar</a></p>";
+
+    return $html;
+});
+
+
+/**
+ * SIMULATION
+ */
+Route::get('/simulate', function (Request $request) {
+
+    $from = $request->get('from');
+    $to = $request->get('to');
+    $pct = (float)$request->get('pct',20);
+
+    $userId = auth()->id();
+    $user = DB::table('users')->where('id',$userId)->first();
+    $companyId = $user->company_id;
+
+    $rows = DB::table('daily_metrics')
+        ->selectRaw('channel, SUM(spend) as spend_sum, SUM(conversions) as conv_sum')
+        ->where('company_id',$companyId)
+        ->groupBy('channel')
+        ->get();
+
+    $data = [];
+
+    foreach($rows as $r){
+
+        $spend = (float)$r->spend_sum;
+        $conv = (int)$r->conv_sum;
+
+        $data[$r->channel] = [
+            'spend'=>$spend,
+            'conv'=>$conv,
+            'cpa'=>$conv>0?$spend/$conv:null
+        ];
+    }
+
+    if(!isset($data[$from]) || !isset($data[$to])){
+        return "Canais inválidos";
+    }
+
+    $move = $data[$from]['spend'] * ($pct/100);
+
+    $fromNew = $data[$from]['spend'] - $move;
+    $toNew = $data[$to]['spend'] + $move;
+
+    $convBefore =
+        $data[$from]['spend']/$data[$from]['cpa'] +
+        $data[$to]['spend']/$data[$to]['cpa'];
+
+    $convAfter =
+        $fromNew/$data[$from]['cpa'] +
+        $toNew/$data[$to]['cpa'];
+
+    $delta = $convAfter - $convBefore;
+
+    return "
+
+    <h1>Simulação</h1>
+
+    <p>Mover $pct% de <b>$from</b> para <b>$to</b></p>
+
+    <h2>Antes</h2>
+
+    Spend $from: ".number_format($data[$from]['spend'],2)."<br>
+    Spend $to: ".number_format($data[$to]['spend'],2)."<br>
+
+    <h2>Depois</h2>
+
+    Spend $from: ".number_format($fromNew,2)."<br>
+    Spend $to: ".number_format($toNew,2)."<br>
+
+    <h2>Impacto estimado</h2>
+
+    Conversões antes: ".number_format($convBefore,2)."<br>
+    Conversões depois: ".number_format($convAfter,2)."<br><br>
+
+    <b>Δ Conversões: ".number_format($delta,2)."</b>
+
+    <p><a href='/analysis'>Voltar</a></p>
+
+    ";
+});
 });
