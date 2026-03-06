@@ -75,7 +75,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             updated_at TIMESTAMP NULL
         )");
 
-        // tenta alinhar estrutura caso tabela antiga já exista
+        // tenta alinhar estrutura se a tabela já existir com formato antigo
         try {
             DB::statement("ALTER TABLE recommendations ADD COLUMN IF NOT EXISTS window_days INT NOT NULL DEFAULT 14");
             DB::statement("ALTER TABLE recommendations ADD COLUMN IF NOT EXISTS snapshot_json LONGTEXT NULL");
@@ -84,7 +84,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             DB::statement("ALTER TABLE recommendations ADD COLUMN IF NOT EXISTS expected_revenue_gain DECIMAL(10,2) NULL");
             DB::statement("ALTER TABLE recommendations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NULL");
         } catch (\Throwable $e) {
-            // ignora se o banco não aceitar IF NOT EXISTS no ALTER
+            // ignora se o banco não aceitar IF NOT EXISTS no ALTER TABLE
         }
 
         $userId = auth()->id();
@@ -134,6 +134,30 @@ Route::middleware(['auth', 'verified'])->group(function () {
         $best = $withCpa[0] ?? null;
         $worst = $withCpa[count($withCpa) - 1] ?? null;
 
+        $bestRoas = null;
+        $bestValuePerLead = null;
+
+        $withRoas = array_values(array_filter($channels, fn($x) => $x['roas'] !== null));
+        if (count($withRoas) > 0) {
+            usort($withRoas, fn($a, $b) => $b['roas'] <=> $a['roas']);
+            $bestRoas = $withRoas[0];
+        }
+
+        $withValuePerLead = array_values(array_filter($channels, fn($x) => $x['value_per_conversion'] !== null));
+        if (count($withValuePerLead) > 0) {
+            usort($withValuePerLead, fn($a, $b) => $b['value_per_conversion'] <=> $a['value_per_conversion']);
+            $bestValuePerLead = $withValuePerLead[0];
+        }
+
+        $executiveSummaryHtml = '
+            <div style="padding:14px;border:1px solid #ddd;border-radius:10px;">
+                <div style="font-size:18px;font-weight:700;margin-bottom:10px;">Resumo executivo</div>
+                <div>Melhor CPA: <b>'.($best ? htmlspecialchars($best['channel']) : '—').'</b></div>
+                <div>Melhor ROAS: <b>'.($bestRoas ? htmlspecialchars($bestRoas['channel']) : '—').'</b></div>
+                <div>Maior receita por lead: <b>'.($bestValuePerLead ? htmlspecialchars($bestValuePerLead['channel']) : '—').'</b></div>
+            </div>
+        ';
+
         $recommendationHtml = '';
         if (!$best || !$worst || $best['channel'] === $worst['channel']) {
             $recommendationHtml = '
@@ -145,7 +169,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             $ratio = $best['cpa'] > 0 ? ($worst['cpa'] / $best['cpa']) : null;
 
             if ($ratio !== null && $ratio >= 1.3) {
-                // simulação rápida 20%
                 $pctMove = 20;
                 $moveAmount = $worst['spend'] * ($pctMove / 100);
 
@@ -198,7 +221,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             }
         }
 
-        // última recomendação salva
         $lastRecommendation = DB::table('recommendations')
             ->where('company_id', $companyId)
             ->orderByDesc('id')
@@ -216,7 +238,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ';
         }
 
-        $html = '
+        $html = $nav . '
         <div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial; max-width:980px; margin:24px auto; padding:0 14px;">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
                 <div>
@@ -251,6 +273,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                             <th style="padding:10px 8px;">CPA</th>
                             <th style="padding:10px 8px;">Receita</th>
                             <th style="padding:10px 8px;">ROAS</th>
+                            <th style="padding:10px 8px;">Receita / Lead</th>
                         </tr>
             ';
 
@@ -263,6 +286,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                         <td style="padding:10px 8px;">'.($c['cpa'] === null ? '—' : 'R$ '.number_format($c['cpa'], 2, ',', '.')).'</td>
                         <td style="padding:10px 8px;">R$ '.number_format($c['revenue'], 2, ',', '.').'</td>
                         <td style="padding:10px 8px;">'.($c['roas'] === null ? '—' : number_format($c['roas'], 2, ',', '.')).'</td>
+                        <td style="padding:10px 8px;">'.($c['value_per_conversion'] === null ? '—' : 'R$ '.number_format($c['value_per_conversion'], 2, ',', '.')).'</td>
                     </tr>
                 ';
             }
@@ -272,6 +296,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 </div>
             ';
 
+            $html .= $executiveSummaryHtml;
             $html .= $recommendationHtml;
             $html .= $lastRecommendationHtml;
         }
@@ -364,11 +389,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     <label>Canal</label><br>
                     <input name="channel" placeholder="Google / Meta / TikTok" required style="padding:10px; width:100%; max-width:420px; border:1px solid #ddd; border-radius:10px;"><br><br>
 
-                    <label>Spend</label><br>
-                    <input name="spend" type="number" step="0.01" required style="padding:10px; width:200px; border:1px solid #ddd; border-radius:10px;"><br><br>
-
                     <label>Conversions / Leads</label><br>
                     <input name="conversions" type="number" required style="padding:10px; width:200px; border:1px solid #ddd; border-radius:10px;"><br><br>
+
+                    <label>Spend</label><br>
+                    <input name="spend" type="number" step="0.01" required style="padding:10px; width:200px; border:1px solid #ddd; border-radius:10px;"><br><br>
 
                     <label>Revenue / Faturamento</label><br>
                     <input name="revenue" type="number" step="0.01" style="padding:10px; width:200px; border:1px solid #ddd; border-radius:10px;"><br><br>
@@ -575,6 +600,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                         <th style="text-align:left;">CPA</th>
                         <th style="text-align:left;">Receita</th>
                         <th style="text-align:left;">ROAS</th>
+                        <th style="text-align:left;">Receita / Lead</th>
                     </tr>';
 
         foreach ($channels as $c) {
@@ -585,6 +611,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                         <td>'.($c['cpa'] === null ? '—' : 'R$ '.number_format($c['cpa'], 2, ',', '.')).'</td>
                         <td>R$ '.number_format($c['revenue'], 2, ',', '.').'</td>
                         <td>'.($c['roas'] === null ? '—' : number_format($c['roas'], 2, ',', '.')).'</td>
+                        <td>'.($c['value_per_conversion'] === null ? '—' : 'R$ '.number_format($c['value_per_conversion'], 2, ',', '.')).'</td>
                       </tr>';
         }
 
