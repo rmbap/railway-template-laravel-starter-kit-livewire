@@ -12,6 +12,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\MetricsController;
 use App\Http\Controllers\AnalysisController;
+use App\Http\Controllers\SimulationController;
 
 Route::get('/up', function () {
     return response('OK', 200);
@@ -52,103 +53,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     /**
      * SIMULAÇÃO
      */
-    Route::get('/simulate', function (Request $request) {
-
-        $from = $request->get('from');
-        $to = $request->get('to');
-        $pct = (float) $request->get('pct', 20);
-
-        $userId = auth()->id();
-        $user = DB::table('users')->where('id', $userId)->first();
-        $companyId = $user->company_id ?? null;
-
-        $rows = DB::table('daily_metrics')
-            ->selectRaw('channel, SUM(spend) as spend_sum, SUM(conversions) as conv_sum, SUM(COALESCE(revenue,0)) as revenue_sum')
-            ->where('company_id', $companyId)
-            ->groupBy('channel')
-            ->get();
-
-        $data = [];
-
-        foreach ($rows as $r) {
-            $spend = (float) $r->spend_sum;
-            $conv = (int) $r->conv_sum;
-            $rev = (float) $r->revenue_sum;
-
-            $data[$r->channel] = [
-                'spend' => $spend,
-                'conv' => $conv,
-                'revenue' => $rev,
-                'cpa' => $conv > 0 ? $spend / $conv : null,
-                'value_per_conversion' => $conv > 0 ? $rev / $conv : 0
-            ];
-        }
-
-        if (!isset($data[$from]) || !isset($data[$to])) {
-            return "Canais inválidos";
-        }
-
-        if (!$data[$from]['cpa'] || !$data[$to]['cpa']) {
-            return "Não é possível simular porque um dos canais não possui conversões suficientes.";
-        }
-
-        $move = $data[$from]['spend'] * ($pct / 100);
-
-        $fromNew = $data[$from]['spend'] - $move;
-        $toNew = $data[$to]['spend'] + $move;
-
-        $convBefore =
-            $data[$from]['spend'] / $data[$from]['cpa'] +
-            $data[$to]['spend'] / $data[$to]['cpa'];
-
-        $convAfter =
-            $fromNew / $data[$from]['cpa'] +
-            $toNew / $data[$to]['cpa'];
-
-        $revenueBefore =
-            ($data[$from]['spend'] / $data[$from]['cpa']) * $data[$from]['value_per_conversion'] +
-            ($data[$to]['spend'] / $data[$to]['cpa']) * $data[$to]['value_per_conversion'];
-
-        $revenueAfter =
-            ($fromNew / $data[$from]['cpa']) * $data[$from]['value_per_conversion'] +
-            ($toNew / $data[$to]['cpa']) * $data[$to]['value_per_conversion'];
-
-        $deltaLeads = $convAfter - $convBefore;
-        $deltaRevenue = $revenueAfter - $revenueBefore;
-
-        return "
-        <div style='font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial; max-width:720px; margin:24px auto; padding:0 14px;'>
-            <h1>Simulação</h1>
-
-            <p>Mover $pct% de <b>$from</b> para <b>$to</b></p>
-
-            <h2>Antes</h2>
-
-            Spend $from: R$ ".number_format($data[$from]['spend'], 2, ',', '.')."<br>
-            Spend $to: R$ ".number_format($data[$to]['spend'], 2, ',', '.')."<br>
-            Receita combinada: R$ ".number_format($revenueBefore, 2, ',', '.')."<br>
-
-            <h2>Depois</h2>
-
-            Spend $from: R$ ".number_format($fromNew, 2, ',', '.')."<br>
-            Spend $to: R$ ".number_format($toNew, 2, ',', '.')."<br>
-            Receita combinada: R$ ".number_format($revenueAfter, 2, ',', '.')."<br>
-
-            <h2>Impacto estimado</h2>
-
-            Leads antes: ".number_format($convBefore, 2, ',', '.')."<br>
-            Leads depois: ".number_format($convAfter, 2, ',', '.')."<br>
-            <b>Δ Leads: ".number_format($deltaLeads, 2, ',', '.')."</b><br><br>
-
-            Faturamento antes: R$ ".number_format($revenueBefore, 2, ',', '.')."<br>
-            Faturamento depois: R$ ".number_format($revenueAfter, 2, ',', '.')."<br>
-            <b>Δ Faturamento: R$ ".number_format($deltaRevenue, 2, ',', '.')."</b>
-
-            <p style='margin-top:16px;'><a href='/analysis'>Voltar</a></p>
-        </div>
-        ";
-    })->name('simulate');
-
+   Route::get('/simulate', [SimulationController::class, 'run'])->name('simulate');
     /**
      * PLANNER - FORM
      */
