@@ -25,7 +25,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         if (count($columns) === 0) {
             DB::statement("ALTER TABLE users ADD company_id BIGINT UNSIGNED NULL");
         }
-
+// garante tabela recommendations
+    DB::statement("CREATE TABLE IF NOT EXISTS recommendations (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        company_id BIGINT UNSIGNED NOT NULL,
+        created_at TIMESTAMP NULL,
+        from_channel VARCHAR(100),
+        to_channel VARCHAR(100),
+        pct_move INT,
+        reason TEXT,
+        expected_leads_gain DECIMAL(10,2),
+        expected_revenue_gain DECIMAL(10,2)
+    )");
         $userId = auth()->id();
         $user = DB::table('users')->where('id', $userId)->first();
         $companyId = $user->company_id ?? null;
