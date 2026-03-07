@@ -32,24 +32,19 @@ class PlannerController extends Controller
             return redirect('/company/create');
         }
 
-        $totalBudget = (float) $request->total_budget;
-        $goal = $request->goal;
-
         $performance = $engine->getChannelPerformance($companyId, 14);
-        $channels = $performance['channels'];
+        $channels = $performance['channels'] ?? [];
 
-        $planner = $engine->buildPlanner($channels, $totalBudget, $goal);
-
-        if (!$planner['valid']) {
-            return view('planner.empty');
-        }
+        $planner = $engine->buildPlanner(
+            $channels,
+            (float) $request->total_budget,
+            $request->goal
+        );
 
         return view('planner.result', [
-            'goal' => $goal,
-            'totalBudget' => $totalBudget,
-            'channels' => $planner['channels'],
-            'estimatedTotalRevenue' => $planner['estimated_total_revenue'],
-            'estimatedTotalLeads' => $planner['estimated_total_leads'],
+            'goal' => $request->goal,
+            'totalBudget' => (float) $request->total_budget,
+            'planner' => $planner,
         ]);
     }
 }
