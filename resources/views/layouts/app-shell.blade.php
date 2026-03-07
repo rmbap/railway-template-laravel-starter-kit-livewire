@@ -266,7 +266,7 @@
             margin-top: 16px;
         }
 
-        @media (max-width: 980px) {
+        @@media (max-width: 980px) {
             .grid-3 {
                 grid-template-columns: 1fr;
             }
@@ -276,7 +276,7 @@
             }
         }
 
-        @media (max-width: 640px) {
+        @@media (max-width: 640px) {
             .container {
                 padding: 0 14px 28px;
             }
