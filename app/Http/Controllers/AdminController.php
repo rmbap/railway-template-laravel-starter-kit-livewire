@@ -6,7 +6,11 @@ class AdminController extends Controller
 {
     public function index()
     {
-        return 'Admin funcionando';
+        $companies = collect([]);
+
+        return view('admin.index', [
+            'companies' => $companies
+        ]);
     }
 
     public function show($id)
