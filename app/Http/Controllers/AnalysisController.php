@@ -9,7 +9,6 @@ class AnalysisController extends Controller
 {
     public function index(BudgetEngineService $engine)
     {
-
         $userId = auth()->id();
 
         $user = DB::table('users')
@@ -22,48 +21,19 @@ class AnalysisController extends Controller
             return redirect('/company/create');
         }
 
-        /*
-        |------------------------------------
-        | PERFORMANCE DOS CANAIS
-        |------------------------------------
-        */
+        $performance = $engine->getChannelPerformance($companyId, 14);
 
-        $performance = $engine->getChannelPerformance($companyId);
-
-        $channels = $performance['channels'];
-
-        /*
-        |------------------------------------
-        | EXECUTIVE SUMMARY
-        |------------------------------------
-        */
-
-        $summary = $engine->getExecutiveSummary($channels);
-
-        /*
-        |------------------------------------
-        | RECOMENDAÇÃO DO MOTOR
-        |------------------------------------
-        */
+        $channels = $performance['channels'] ?? [];
+        $window_start = $performance['window_start'] ?? null;
+        $window_end = $performance['window_end'] ?? null;
 
         $recommendation = $engine->buildRecommendation($channels);
 
-        /*
-        |------------------------------------
-        | VIEW
-        |------------------------------------
-        */
-
         return view('analysis.index', [
-
             'channels' => $channels,
-
-            'bestCpa' => $summary['best_cpa'],
-            'bestRoas' => $summary['best_roas'],
-            'bestValuePerLead' => $summary['best_value_per_lead'],
-
-            'recommendation' => $recommendation
-
+            'window_start' => $window_start,
+            'window_end' => $window_end,
+            'recommendation' => $recommendation,
         ]);
     }
 }
