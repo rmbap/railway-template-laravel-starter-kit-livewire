@@ -22,12 +22,15 @@ class DashboardController extends Controller
         $companyId = $user->company_id;
 
         $performance = $engine->getChannelPerformance($companyId, 14);
-
         $channels = $performance['channels'];
 
         $summary = $engine->getExecutiveSummary($channels);
-
         $recommendation = $engine->buildRecommendation($channels);
+
+        $latestEngineRecommendation = DB::table('recommendations')
+            ->where('company_id', $companyId)
+            ->orderByDesc('id')
+            ->first();
 
         return view('dashboard.index', [
             'channels' => $channels,
@@ -35,6 +38,7 @@ class DashboardController extends Controller
             'recommendation' => $recommendation,
             'window_start' => $performance['window_start'],
             'window_end' => $performance['window_end'],
+            'latestEngineRecommendation' => $latestEngineRecommendation,
         ]);
     }
 }
