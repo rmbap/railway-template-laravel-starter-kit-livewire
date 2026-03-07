@@ -2,43 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\DB;
-use App\Services\BudgetEngineService;
-
 class DashboardController extends Controller
 {
-    public function index(BudgetEngineService $engine)
+    public function index()
     {
-        $userId = auth()->id();
-
-        $user = DB::table('users')
-            ->where('id', $userId)
-            ->first();
-
-        if (!$user || !$user->company_id) {
-            return redirect('/company/create');
-        }
-
-        $companyId = $user->company_id;
-
-        $performance = $engine->getChannelPerformance($companyId, 14);
-        $channels = $performance['channels'];
-
-        $summary = $engine->getExecutiveSummary($channels);
-        $recommendation = $engine->buildRecommendation($channels);
-
-        $latestEngineRecommendation = DB::table('recommendations')
-            ->where('company_id', $companyId)
-            ->orderByDesc('id')
-            ->first();
-
-        return view('dashboard.index', [
-            'channels' => $channels,
-            'summary' => $summary,
-            'recommendation' => $recommendation,
-            'window_start' => $performance['window_start'],
-            'window_end' => $performance['window_end'],
-            'latestEngineRecommendation' => $latestEngineRecommendation,
-        ]);
+        return view('dashboard.index');
     }
 }
