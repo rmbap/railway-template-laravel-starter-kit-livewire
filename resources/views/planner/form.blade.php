@@ -5,7 +5,7 @@
 
     <p>
         <label>Orçamento total</label><br>
-        <input type="number" step="0.01" name="total_budget" required>
+        <input type="number" name="total_budget" step="0.01" required>
     </p>
 
     <p>
@@ -18,5 +18,3 @@
 
     <button type="submit">Calcular</button>
 </form>
-
-<p><a href="/dashboard">Voltar ao dashboard</a></p>
