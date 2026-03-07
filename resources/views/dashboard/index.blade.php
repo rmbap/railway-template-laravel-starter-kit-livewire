@@ -1,45 +1,35 @@
 <h1>Dashboard</h1>
 
-@if(!$hasCompany)
+<h2>Resumo geral</h2>
 
-<p>Você ainda não cadastrou uma empresa.</p>
+@php
+$totalSpend = 0;
+$totalLeads = 0;
 
-<p>
-<a href="/company/create">Criar empresa</a>
-</p>
+foreach($channels as $c){
+    $totalSpend += $c['spend'];
+    $totalLeads += $c['conv'];
+}
 
-@else
+$cpa = $totalLeads > 0 ? $totalSpend / $totalLeads : null;
+@endphp
 
-<h2>Oportunidade detectada</h2>
-
-@if($recommendation['has_recommendation'])
-
-<p>
-Mover verba de
-<strong>{{ $recommendation['worst']['channel'] }}</strong>
-para
-<strong>{{ $recommendation['best']['channel'] }}</strong>
-</p>
-
-<p>
-Leads estimados:
-+{{ number_format($recommendation['expected_leads_gain'],2,',','.') }}
-</p>
-
-<p>
-Receita estimada:
-+R$ {{ number_format($recommendation['expected_revenue_gain'],2,',','.') }}
-</p>
-
-@else
-
-<p>{{ $recommendation['decision_text'] }}</p>
-
-@endif
+<ul>
+    <li><strong>Total spend:</strong> R$ {{ number_format($totalSpend,2,',','.') }}</li>
+    <li><strong>Total leads:</strong> {{ $totalLeads }}</li>
+    <li>
+        <strong>CPA médio:</strong>
+        @if($cpa)
+            R$ {{ number_format($cpa,2,',','.') }}
+        @else
+            —
+        @endif
+    </li>
+</ul>
 
 <hr>
 
-<h2>Canais</h2>
+<h2>Performance por canal</h2>
 
 <table border="1" cellpadding="6" style="border-collapse:collapse;width:100%">
 <tr>
@@ -66,4 +56,13 @@ R$ {{ number_format($c['cpa'],2,',','.') }}
 
 </table>
 
-@endif
+<hr>
+
+<h2>Ações</h2>
+
+<ul>
+<li><a href="/metrics/create">Registrar métricas</a></li>
+<li><a href="/analysis">Ver análise</a></li>
+<li><a href="/planner">Planejar orçamento</a></li>
+<li><a href="/admin">Admin</a></li>
+</ul>
