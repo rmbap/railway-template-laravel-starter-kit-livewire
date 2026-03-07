@@ -3,6 +3,45 @@
 @section('content')
 
 <div class="page-header">
+    @if(!empty($latestEngineRecommendation))
+
+<div class="card opportunity">
+
+    <span class="pill pill-success">
+        Oportunidade detectada pela engine
+    </span>
+
+    <div class="opportunity-headline">
+        {{ $latestEngineRecommendation->decision_text }}
+    </div>
+
+    <div class="impact-row">
+
+        <div class="impact-box">
+            <div class="label">
+                Leads adicionais estimados
+            </div>
+
+            <div class="value">
+                +{{ number_format((float)($latestEngineRecommendation->expected_leads_gain ?? 0),2,',','.') }}
+            </div>
+        </div>
+
+        <div class="impact-box">
+            <div class="label">
+                Receita adicional estimada
+            </div>
+
+            <div class="value">
+                +R$ {{ number_format((float)($latestEngineRecommendation->expected_revenue_gain ?? 0),2,',','.') }}
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+@endif
     <div>
         <h1 class="page-title">Dashboard</h1>
         <p class="page-subtitle">
