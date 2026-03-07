@@ -1,3 +1,6 @@
+@extends('layouts.app')
+
+@section('content')
 <div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial; max-width:980px; margin:24px auto; padding:0 14px;">
 
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
@@ -49,3 +52,4 @@
     </div>
 
 </div>
+@endsection
