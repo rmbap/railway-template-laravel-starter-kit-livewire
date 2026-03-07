@@ -8,7 +8,7 @@ class PlannerController extends Controller
 {
     public function form()
     {
-        return 'Planner GET funcionando';
+        return view('planner.form');
     }
 
     public function run(Request $request)
