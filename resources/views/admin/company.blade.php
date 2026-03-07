@@ -1,79 +1,94 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Cliente</title>
-</head>
-<body style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial; margin:0; background:#fff; color:#111;">
-    <div style="max-width:1100px; margin:24px auto; padding:0 14px;">
-        <p><a href="/admin">← Voltar ao admin</a></p>
+<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial; max-width:980px; margin:24px auto; padding:0 14px;">
 
-        <h1 style="margin-bottom:8px;">Cliente: {{ $company->name }}</h1>
-
-        <div style="padding:14px; border:1px solid #ddd; border-radius:10px; margin-top:16px;">
-            <div style="font-size:18px; font-weight:700; margin-bottom:10px;">Perfil da empresa</div>
-            <div><b>Segmento:</b> {{ $company->segment ?: '—' }}</div>
-            <div><b>Região:</b> {{ $company->region ?: '—' }}</div>
-            <div><b>Ticket médio:</b> R$ {{ number_format((float) ($company->avg_ticket ?? 0), 2, ',', '.') }}</div>
-            <div><b>Objetivo principal:</b> {{ $company->primary_goal ?: '—' }}</div>
-            <div><b>Budget mensal:</b> R$ {{ number_format((float) ($company->monthly_budget ?? 0), 2, ',', '.') }}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div>
+            <div style="font-size:26px;font-weight:700;">Empresa: {{ $company->name }}</div>
+            <div style="color:#555;margin-top:4px;">
+                Visão detalhada da empresa no sistema
+            </div>
         </div>
 
-        <h2 style="margin-top:24px;">Usuários</h2>
-        <ul>
-            @forelse($users as $user)
-                <li>{{ $user->name }} — {{ $user->email }}</li>
-            @empty
-                <li>Nenhum usuário encontrado.</li>
-            @endforelse
-        </ul>
-
-        <h2 style="margin-top:24px;">Métricas recentes</h2>
-        <table style="width:100%; border-collapse:collapse;">
-            <tr style="text-align:left; border-bottom:1px solid #ddd;">
-                <th style="padding:10px 8px;">Data</th>
-                <th style="padding:10px 8px;">Canal</th>
-                <th style="padding:10px 8px;">Spend</th>
-                <th style="padding:10px 8px;">Leads</th>
-                <th style="padding:10px 8px;">Receita</th>
-            </tr>
-            @forelse($metrics as $metric)
-                <tr style="border-bottom:1px solid #f0f0f0;">
-                    <td style="padding:10px 8px;">{{ $metric->date }}</td>
-                    <td style="padding:10px 8px;">{{ $metric->channel }}</td>
-                    <td style="padding:10px 8px;">R$ {{ number_format((float) $metric->spend, 2, ',', '.') }}</td>
-                    <td style="padding:10px 8px;">{{ $metric->conversions }}</td>
-                    <td style="padding:10px 8px;">R$ {{ number_format((float) ($metric->revenue ?? 0), 2, ',', '.') }}</td>
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="5" style="padding:16px 8px;">Nenhuma métrica encontrada.</td>
-                </tr>
-            @endforelse
-        </table>
-
-        <h2 style="margin-top:24px;">Recomendações recentes</h2>
-        <table style="width:100%; border-collapse:collapse;">
-            <tr style="text-align:left; border-bottom:1px solid #ddd;">
-                <th style="padding:10px 8px;">ID</th>
-                <th style="padding:10px 8px;">Decisão</th>
-                <th style="padding:10px 8px;">Leads estimados</th>
-                <th style="padding:10px 8px;">Faturamento estimado</th>
-            </tr>
-            @forelse($recommendations as $recommendation)
-                <tr style="border-bottom:1px solid #f0f0f0;">
-                    <td style="padding:10px 8px;">{{ $recommendation->id }}</td>
-                    <td style="padding:10px 8px;">{{ $recommendation->decision_text }}</td>
-                    <td style="padding:10px 8px;">{{ number_format((float) ($recommendation->expected_leads_gain ?? 0), 2, ',', '.') }}</td>
-                    <td style="padding:10px 8px;">R$ {{ number_format((float) ($recommendation->expected_revenue_gain ?? 0), 2, ',', '.') }}</td>
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="4" style="padding:16px 8px;">Nenhuma recomendação encontrada.</td>
-                </tr>
-            @endforelse
-        </table>
+        <div>
+            <a href="/admin"
+               style="text-decoration:none;padding:10px 14px;border:1px solid #ddd;border-radius:10px;background:#fff;color:#111;">
+                Voltar ao admin
+            </a>
+        </div>
     </div>
-</body>
-</html>
+
+    <div style="margin-top:18px; display:grid; grid-template-columns:repeat(3,1fr); gap:14px;">
+        <div style="padding:14px;border:1px solid #ddd;border-radius:10px;">
+            <div style="font-size:13px;color:#666;">ID da empresa</div>
+            <div style="font-size:22px;font-weight:700;margin-top:6px;">{{ $company->id }}</div>
+        </div>
+
+        <div style="padding:14px;border:1px solid #ddd;border-radius:10px;">
+            <div style="font-size:13px;color:#666;">Qtd. métricas carregadas</div>
+            <div style="font-size:22px;font-weight:700;margin-top:6px;">{{ count($metrics) }}</div>
+        </div>
+
+        <div style="padding:14px;border:1px solid #ddd;border-radius:10px;">
+            <div style="font-size:13px;color:#666;">Qtd. recomendações</div>
+            <div style="font-size:22px;font-weight:700;margin-top:6px;">{{ count($recommendations) }}</div>
+        </div>
+    </div>
+
+    <div style="margin-top:18px; display:grid; grid-template-columns:1fr; gap:14px;">
+
+        <div style="padding:14px;border:1px solid #ddd;border-radius:10px;">
+            <div style="font-size:18px;font-weight:700;margin-bottom:10px;">Métricas recentes</div>
+
+            @if(count($metrics) === 0)
+                <div>Nenhuma métrica encontrada.</div>
+            @else
+                <table style="width:100%;border-collapse:collapse;">
+                    <tr style="border-bottom:1px solid #eee;text-align:left;">
+                        <th style="padding:10px 8px;">Data</th>
+                        <th style="padding:10px 8px;">Canal</th>
+                        <th style="padding:10px 8px;">Spend</th>
+                        <th style="padding:10px 8px;">Conversões</th>
+                        <th style="padding:10px 8px;">Receita</th>
+                    </tr>
+
+                    @foreach($metrics as $metric)
+                        <tr style="border-bottom:1px solid #f2f2f2;">
+                            <td style="padding:10px 8px;">{{ $metric->date }}</td>
+                            <td style="padding:10px 8px;">{{ $metric->channel }}</td>
+                            <td style="padding:10px 8px;">R$ {{ number_format((float)$metric->spend, 2, ',', '.') }}</td>
+                            <td style="padding:10px 8px;">{{ $metric->conversions }}</td>
+                            <td style="padding:10px 8px;">R$ {{ number_format((float)($metric->revenue ?? 0), 2, ',', '.') }}</td>
+                        </tr>
+                    @endforeach
+                </table>
+            @endif
+        </div>
+
+        <div style="padding:14px;border:1px solid #ddd;border-radius:10px;">
+            <div style="font-size:18px;font-weight:700;margin-bottom:10px;">Recomendações recentes</div>
+
+            @if(count($recommendations) === 0)
+                <div>Nenhuma recomendação encontrada.</div>
+            @else
+                <table style="width:100%;border-collapse:collapse;">
+                    <tr style="border-bottom:1px solid #eee;text-align:left;">
+                        <th style="padding:10px 8px;">Data</th>
+                        <th style="padding:10px 8px;">Decisão</th>
+                        <th style="padding:10px 8px;">Leads estimados</th>
+                        <th style="padding:10px 8px;">Receita estimada</th>
+                    </tr>
+
+                    @foreach($recommendations as $rec)
+                        <tr style="border-bottom:1px solid #f2f2f2;">
+                            <td style="padding:10px 8px;">{{ $rec->created_at }}</td>
+                            <td style="padding:10px 8px;">{{ $rec->decision_text }}</td>
+                            <td style="padding:10px 8px;">{{ number_format((float)($rec->expected_leads_gain ?? 0), 2, ',', '.') }}</td>
+                            <td style="padding:10px 8px;">R$ {{ number_format((float)($rec->expected_revenue_gain ?? 0), 2, ',', '.') }}</td>
+                        </tr>
+                    @endforeach
+                </table>
+            @endif
+        </div>
+
+    </div>
+
+</div>
