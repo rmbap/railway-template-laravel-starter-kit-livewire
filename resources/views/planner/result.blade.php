@@ -1,11 +1,19 @@
 <h1>Resultado do Planner</h1>
 
-<p><strong>Objetivo:</strong> {{ $goal === 'revenue' ? 'Maximizar receita' : 'Maximizar leads' }}</p>
-<p><strong>Orçamento total:</strong> R$ {{ number_format($totalBudget, 2, ',', '.') }}</p>
+<p>
+    <strong>Objetivo:</strong>
+    {{ $goal === 'revenue' ? 'Maximizar receita' : 'Maximizar leads' }}
+</p>
+
+<p>
+    <strong>Orçamento total:</strong>
+    R$ {{ number_format($totalBudget, 2, ',', '.') }}
+</p>
 
 @if(empty($planner['valid']))
     <p>Não foi possível calcular com os dados atuais.</p>
 @else
+
     <table border="1" cellpadding="6" style="border-collapse:collapse;width:100%">
         <tr>
             <th>Canal</th>
@@ -37,5 +45,10 @@
     </p>
 @endif
 
-<p><a href="/planner">Nova simulação</a></p>
-<p><a href="/dashboard">Voltar ao dashboard</a></p>
+<p style="margin-top:16px;">
+    <a href="/planner">Nova simulação</a>
+</p>
+
+<p>
+    <a href="/dashboard">Voltar ao dashboard</a>
+</p>
