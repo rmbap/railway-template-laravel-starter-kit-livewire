@@ -8,7 +8,6 @@
 <title>Budget Engine</title>
 
 <style>
-
 body{
     font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial;
     margin:0;
@@ -27,17 +26,16 @@ body{
     border-radius:12px;
     padding:18px;
 }
-
 </style>
 
 </head>
 
 <body>
 
+@include('partials.topbar')
+
 <div class="container">
-
-@yield('content')
-
+    @yield('content')
 </div>
 
 </body>
