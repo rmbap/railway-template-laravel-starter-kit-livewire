@@ -301,7 +301,7 @@
 </head>
 <body>
     <div class="shell">
-        @include('partials.topbar')
+        {{-- @include('partials.topbar') --}}
 
         <main class="container">
             @yield('content')
