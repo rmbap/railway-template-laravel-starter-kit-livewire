@@ -9,13 +9,15 @@
     </div>
 
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <a href="/dashboard" style="text-decoration:none;padding:10px 14px;border:1px solid #ddd;border-radius:10px;background:#fff;color:#111;">
+        <a href="/dashboard"
+           style="text-decoration:none;padding:10px 14px;border:1px solid #ddd;border-radius:10px;background:#fff;color:#111;">
             Voltar ao dashboard
         </a>
     </div>
 </div>
 
-<div style="margin-top:18px;padding:18px;border:1px solid #ddd;border-radius:12px;">
+<div class="card" style="margin-top:18px;">
+
     <form method="POST" action="/planner">
         @csrf
 
@@ -49,6 +51,7 @@
         </button>
 
     </form>
+
 </div>
 
 @endsection
