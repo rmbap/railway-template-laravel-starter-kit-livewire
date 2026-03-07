@@ -1,57 +1,58 @@
-<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial; max-width:980px; margin:24px auto; padding:0 14px;">
+@extends('layouts.app')
 
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
-        <div>
-            <div style="font-size:26px;font-weight:700;">Admin</div>
-            <div style="color:#555;margin-top:4px;">
-                Empresas cadastradas no sistema
-            </div>
-        </div>
+@section('content')
 
-        <div>
-            <a href="/dashboard"
-            style="text-decoration:none;padding:10px 14px;border:1px solid #ddd;border-radius:10px;background:#fff;color:#111;">
-                Voltar ao dashboard
-            </a>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+    <div>
+        <div style="font-size:26px;font-weight:700;">Admin</div>
+        <div style="color:#555;margin-top:4px;">
+            Empresas cadastradas no sistema
         </div>
     </div>
 
-    <div style="margin-top:18px;padding:14px;border:1px solid #ddd;border-radius:10px;">
+    <div>
+        <a href="/dashboard"
+           style="text-decoration:none;padding:10px 14px;border:1px solid #ddd;border-radius:10px;background:#fff;color:#111;">
+            Voltar ao dashboard
+        </a>
+    </div>
+</div>
 
-        @if(count($companies) === 0)
+<div class="card" style="margin-top:18px;">
 
-            <div>Nenhuma empresa cadastrada.</div>
+    @if(count($companies) === 0)
 
-        @else
+        <div>Nenhuma empresa cadastrada.</div>
 
-            <table style="width:100%;border-collapse:collapse;">
+    @else
 
-                <tr style="border-bottom:1px solid #eee;text-align:left;">
-                    <th style="padding:10px 8px;">Empresa</th>
-                    <th style="padding:10px 8px;">Criada em</th>
-                    <th style="padding:10px 8px;">Ação</th>
+        <table style="width:100%;border-collapse:collapse;">
+
+            <tr style="border-bottom:1px solid #eee;text-align:left;">
+                <th style="padding:10px 8px;">Empresa</th>
+                <th style="padding:10px 8px;">Criada em</th>
+                <th style="padding:10px 8px;">Ação</th>
+            </tr>
+
+            @foreach($companies as $company)
+
+                <tr style="border-bottom:1px solid #f2f2f2;">
+                    <td style="padding:10px 8px;">{{ $company->name }}</td>
+                    <td style="padding:10px 8px;">{{ $company->created_at }}</td>
+                    <td style="padding:10px 8px;">
+                        <a href="/admin/company/{{ $company->id }}"
+                           style="text-decoration:none;padding:6px 10px;border:1px solid #ddd;border-radius:6px;background:#fff;">
+                            Ver empresa
+                        </a>
+                    </td>
                 </tr>
 
-                @foreach($companies as $company)
+            @endforeach
 
-                    <tr style="border-bottom:1px solid #f2f2f2;">
-                        <td style="padding:10px 8px;">{{ $company->name }}</td>
-                        <td style="padding:10px 8px;">{{ $company->created_at }}</td>
-                        <td style="padding:10px 8px;">
-                            <a
-                                href="/admin/company/{{ $company->id }}"
-                                style="text-decoration:none;padding:6px 10px;border:1px solid #ddd;border-radius:6px;background:#fff;">
-                                Ver empresa
-                            </a>
-                        </td>
-                    </tr>
+        </table>
 
-                @endforeach
-
-            </table>
-
-        @endif
-
-    </div>
+    @endif
 
 </div>
+
+@endsection
